@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Zephra AI — Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0b0b10;--surface:#141420;--card:#1a1a28;--border:rgba(255,255,255,0.08);
+  --neon:#00e5c8;--neon2:#00bfa5;--purple:#7c4dff;
+  --text:#eeeef5;--muted:#777790;--red:#ff5577;--blue:#6ab4ff;--gold:#f5c518;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+.g1,.g2{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(100px);}
+.g1{width:600px;height:600px;background:radial-gradient(circle,rgba(0,229,200,0.09),transparent 70%);top:-180px;left:-180px;animation:d1 12s ease-in-out infinite;}
+.g2{width:500px;height:500px;background:radial-gradient(circle,rgba(124,77,255,0.07),transparent 70%);bottom:-130px;right:-130px;animation:d2 10s ease-in-out infinite;}
+@keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(55px,35px)}}
+@keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-50px)}}
+.page{display:none;position:relative;z-index:1;min-height:100vh;}
+.page.on{display:flex;}
+
+/* ══ LOGIN PAGE ══ */
+#login-page{align-items:center;justify-content:center;padding:20px;}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:28px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 0 80px rgba(0,229,200,0.07);animation:fadeUp .5s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{font-family:'Orbitron',monospace;font-weight:900;font-size:2.2rem;letter-spacing:.08em;background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;margin-bottom:4px;}
+.login-sub{text-align:center;font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:32px;}
+
+/* step indicator */
+.steps{display:flex;justify-content:center;gap:6px;margin-bottom:28px;}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .3s;}
+.step-dot.on{background:var(--neon);box-shadow:0 0 8px rgba(0,229,200,0.5);}
+
+/* step panels */
+.step-panel{display:none;flex-direction:column;gap:0;animation:fadeIn .3s ease;}
+.step-panel.on{display:flex;}
+@keyframes fadeIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+.step-title{font-size:1rem;font-weight:600;margin-bottom:4px;color:var(--text);}
+.step-desc{font-size:.78rem;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+
+/* google button */
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.93rem;font-weight:500;cursor:pointer;transition:all .2s;margin-bottom:16px;}
+.google-btn:hover{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,229,200,0.1);}
+.google-icon{width:20px;height:20px;flex-shrink:0;}
+
+.divider{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.divider span{font-size:.72rem;color:var(--muted);}
+
+.inp-wrap{position:relative;margin-bottom:14px;}
+.inp-wrap label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+.inp-wrap input{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.93rem;outline:none;transition:border-color .2s,box-shadow .2s;}
+.inp-wrap input:focus{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,229,200,0.1);}
+.inp-wrap input::placeholder{color:var(--muted);}
+.inp-err{font-size:.72rem;color:var(--red);margin-top:5px;min-height:16px;}
+
+.login-btn{width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--neon2),var(--neon));color:#000;font-family:'DM Sans',sans-serif;font-size:.93rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;margin-top:4px;}
+.login-btn:hover{opacity:.88;}
+.login-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.back-btn{background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0;margin-bottom:16px;transition:color .2s;}
+.back-btn:hover{color:var(--neon);}
+
+/* avatar row */
+.av-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.av-opt{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);cursor:pointer;font-size:1.35rem;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.av-opt.on{border-color:var(--neon);box-shadow:0 0 12px rgba(0,229,200,0.4);transform:scale(1.1);}
+
+/* gmail preview chip */
+.gmail-chip{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:100px;padding:8px 14px;margin-bottom:20px;}
+.gmail-chip-av{font-size:1.2rem;}
+.gmail-chip-email{font-size:.82rem;color:var(--text);}
+
+/* ══ HOME ══ */
+#home{flex-direction:column;}
+.home-inner{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;position:relative;z-index:1;}
+.hlogo{font-family:'Orbitron',monospace;font-weight:900;font-size:clamp(2.8rem,8vw,5rem);background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;text-align:center;}
+.htag{color:var(--muted);font-size:.88rem;margin-bottom:36px;letter-spacing:.05em;text-align:center;}
+.hsearch{width:100%;max-width:640px;display:flex;align-items:center;background:var(--surface);border:1.5px solid var(--border);border-radius:100px;padding:0 8px 0 22px;box-shadow:0 4px 40px rgba(0,229,200,0.07);margin-bottom:18px;transition:border-color .2s,box-shadow .2s;}
+.hsearch:focus-within{border-color:var(--neon);box-shadow:0 0 0 4px rgba(0,229,200,0.09),0 8px 40px rgba(0,229,200,0.1);}
+.hsearch input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:1rem;padding:15px 0;}
+.hsearch input::placeholder{color:var(--muted);}
+.hsearch button{padding:10px 26px;border-radius:100px;border:none;background:var(--neon);color:#000;font-weight:700;font-size:.88rem;cursor:pointer;transition:opacity .15s;}
+.hsearch button:hover{opacity:.88;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:600px;}
+.chip{padding:6px 16px;border-radius:100px;border:1px solid var(--border);background:var(--surface);font-size:.76rem;color:var(--muted);cursor:pointer;transition:all .2s;}
+.chip:hover{border-color:var(--neon);color:var(--text);}
+
+/* ══ NAVBAR ══ */
+.navbar{position:sticky;top:0;z-index:100;background:rgba(11,11,16,0.96);border-bottom:1px solid var(--border);backdrop-filter:blur(14px);display:flex;align-items:center;gap:12px;padding:12px 20px;}
+.nlogo{font-family:'Orbitron',monospace;font-weight:900;font-size:1.15rem;background:linear-gradient(135deg,var(--neon),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.nsearch{flex:1;max-width:680px;display:flex;align-items:center;background:var(--card);border:1.5px solid var(--border);border-radius:100px;padding:0 6px 0 18px;transition:border-color .2s,box-shadow .2s;}
+.nsearch:focus-within{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,229,200,0.1);}
+.nsearch input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.94rem;padding:10px 0;}
+.nsearch input::placeholder{color:var(--muted);}
+.nsearch button{padding:8px 18px;border-radius:100px;border:none;background:var(--neon);color:#000;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap;transition:opacity .15s;}
+.nsearch button:hover{opacity:.85;}
+.nav-profile-btn{width:36px;height:36px;border-radius:50%;border:2px solid var(--neon);background:var(--card);cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;position:relative;}
+.nav-profile-btn:hover{box-shadow:0 0 12px rgba(0,229,200,0.4);}
+
+/* profile dropdown */
+.pdrop{position:absolute;top:58px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px;width:220px;box-shadow:0 20px 60px rgba(0,0,0,.6);z-index:300;display:none;animation:sdown .2s ease;}
+.pdrop.on{display:block;}
+@keyframes sdown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.pd-av{font-size:2.2rem;text-align:center;margin-bottom:4px;}
+.pd-name{font-weight:600;font-size:.92rem;text-align:center;}
+.pd-email{font-size:.68rem;color:var(--muted);text-align:center;margin-bottom:14px;word-break:break-all;}
+.pd-out{width:100%;padding:9px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.8rem;cursor:pointer;transition:all .2s;}
+.pd-out:hover{border-color:var(--red);color:var(--red);}
+
+/* ══ RESULTS LAYOUT ══ */
+#results{flex-direction:column;}
+.results-layout{display:flex;gap:0;flex:1;position:relative;z-index:1;}
+.res-body{flex:1;padding:22px 24px 60px;max-width:620px;min-width:0;}
+.rmeta{font-size:.78rem;color:var(--muted);margin-bottom:18px;}
+.rmeta span{color:var(--neon);}
+
+/* ══ SIDEBAR ══ */
+.sidebar{width:300px;flex-shrink:0;padding:20px 16px 40px;border-left:1px solid var(--border);position:sticky;top:57px;height:calc(100vh - 57px);overflow-y:auto;display:flex;flex-direction:column;gap:14px;}
+.sidebar::-webkit-scrollbar{width:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.sb-profile{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;text-align:center;}
+.sb-avatar{font-size:3rem;margin-bottom:8px;line-height:1;}
+.sb-name{font-weight:700;font-size:1rem;margin-bottom:2px;}
+.sb-email{font-size:.68rem;color:var(--muted);margin-bottom:4px;word-break:break-all;}
+.sb-tag{font-size:.72rem;color:var(--neon);letter-spacing:.06em;text-transform:uppercase;}
+.grade-ring{width:80px;height:80px;margin:14px auto 6px;position:relative;}
+.grade-ring svg{transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--card);stroke-width:6;}
+.ring-fill{fill:none;stroke:var(--neon);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .8s ease,stroke .4s;}
+.grade-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.grade-val{font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:900;color:var(--neon);line-height:1;}
+.grade-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+.sb-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center;transition:border-color .3s;}
+.stat-card.glow{border-color:rgba(0,229,200,0.35);box-shadow:0 0 16px rgba(0,229,200,0.08);}
+.stat-icon{font-size:1.4rem;margin-bottom:6px;}
+.stat-val{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--neon);line-height:1;margin-bottom:3px;}
+.stat-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.sb-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
+.sb-section-title{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;}
+.progress-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.progress-label{font-size:.74rem;color:var(--text);}
+.progress-pct{font-size:.72rem;color:var(--neon);font-weight:600;}
+.progress-bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-bottom:12px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--neon2),var(--neon));border-radius:3px;transition:width .8s ease;}
+.tree-milestone{background:linear-gradient(135deg,rgba(0,229,200,0.06),rgba(124,77,255,0.06));border:1px solid rgba(0,229,200,0.2);border-radius:14px;padding:14px 16px;}
+.tree-milestone-title{font-size:.68rem;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.tree-count{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;color:var(--neon);line-height:1;}
+.tree-sublabel{font-size:.72rem;color:var(--muted);margin-top:2px;}
+.tree-progress-wrap{margin-top:10px;}
+.tree-next{font-size:.7rem;color:var(--muted);margin-bottom:5px;}
+.tree-next span{color:var(--text);}
+.badges-wrap{display:flex;flex-wrap:wrap;gap:6px;}
+.badge{padding:4px 10px;border-radius:100px;font-size:.66rem;font-weight:600;border:1px solid;display:flex;align-items:center;gap:4px;}
+.badge.earned{border-color:var(--neon);color:var(--neon);background:rgba(0,229,200,0.08);}
+.badge.locked{border-color:var(--border);color:var(--muted);opacity:.5;}
+.mini-chart{display:flex;align-items:flex-end;gap:3px;height:36px;margin-top:4px;}
+.bar-item{flex:1;background:linear-gradient(to top,var(--neon2),var(--neon));border-radius:2px 2px 0 0;opacity:.7;transition:height .4s;}
+.bar-item:hover{opacity:1;}
+
+/* ══ AI BOX ══ */
+.aibox{background:linear-gradient(135deg,rgba(0,229,200,0.05),rgba(124,77,255,0.05));border:1px solid rgba(0,229,200,0.22);border-radius:16px;padding:20px 22px;margin-bottom:26px;}
+.ailabel{display:flex;align-items:center;gap:8px;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--neon);margin-bottom:12px;}
+.aidot{width:7px;height:7px;background:var(--neon);border-radius:50%;animation:pulse 1.5s ease-in-out infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,200,.4)}50%{box-shadow:0 0 0 6px rgba(0,229,200,0)}}
+.aitext{font-size:.94rem;line-height:1.78;}
+.aitext strong{color:var(--neon);}
+.aifooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);font-size:.68rem;color:var(--muted);}
+.dots{display:inline-flex;gap:5px;align-items:center;}
+.dots span{width:6px;height:6px;border-radius:50%;animation:dot 1.2s ease-in-out infinite;}
+.dots span:nth-child(1){background:var(--neon);}
+.dots span:nth-child(2){background:var(--purple);animation-delay:.2s;}
+.dots span:nth-child(3){background:var(--neon);animation-delay:.4s;}
+@keyframes dot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+.skel{background:linear-gradient(90deg,var(--card) 25%,var(--surface) 50%,var(--card) 75%);background-size:200% 100%;border-radius:6px;animation:shim 1.5s infinite;}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.wr{padding:17px 0;border-bottom:1px solid var(--border);}
+.wr:last-child{border-bottom:none;}
+.wr-src{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.wr-fav{width:18px;height:18px;border-radius:4px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;}
+.wr-url{font-size:.76rem;color:var(--muted);}
+.wr-title{font-size:1rem;font-weight:600;color:var(--blue);cursor:pointer;margin-bottom:5px;line-height:1.35;text-decoration:none;display:block;}
+.wr-title:hover{color:var(--neon);text-decoration:underline;}
+.wr-snip{font-size:.83rem;color:#aaa;line-height:1.58;}
+.wr-snip strong{color:var(--text);}
+@keyframes cblink{0%,100%{opacity:1}50%{opacity:0}}
+.cursor{animation:cblink .7s step-end infinite;color:var(--neon);}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+.bump{animation:bump .35s ease;}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--neon);border-radius:100px;padding:10px 22px;font-size:.82rem;color:var(--neon);box-shadow:0 8px 32px rgba(0,229,200,0.2);z-index:999;transition:transform .4s,opacity .4s;opacity:0;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+/* welcome back banner */
+.wb-banner{background:linear-gradient(135deg,rgba(0,229,200,0.08),rgba(124,77,255,0.08));border:1px solid rgba(0,229,200,0.2);border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;margin-bottom:20px;animation:fadeUp .4s ease;}
+.wb-av{font-size:1.6rem;}
+.wb-text{flex:1;}
+.wb-hello{font-size:.85rem;font-weight:600;color:var(--text);}
+.wb-sub{font-size:.72rem;color:var(--muted);}
+
+@media(max-width:900px){.sidebar{display:none;}.res-body{max-width:100%;}}
+@media(max-width:600px){
+  .navbar{padding:10px 12px;gap:8px;}.nlogo{font-size:1rem;}
+  .res-body{padding:16px 14px 60px;}.aibox{padding:16px;}.hlogo{font-size:2.2rem;}
+  .login-box{padding:36px 24px;}
+}
+</style>
+</head>
+<body>
+<div class="g1"></div><div class="g2"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ══ LOGIN PAGE ══ -->
+<div class="page on" id="login-page">
+  <div class="login-box">
+    <div class="login-logo">ZEPHRA</div>
+    <div class="login-sub">Climate-Aware AI Search</div>
+
+    <div class="steps">
+      <div class="step-dot on" id="dot-0"></div>
+      <div class="step-dot" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+    </div>
+
+    <!-- Step 0: Gmail -->
+    <div class="step-panel on" id="step-0">
+      <div class="step-title">Sign in with Google</div>
+      <div class="step-desc">Enter your Gmail address to get started. We'll remember you next time.</div>
+      <button class="google-btn" onclick="handleGoogleBtn()">
+        <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+      <div class="divider"><span>or enter manually</span></div>
+      <div class="inp-wrap">
+        <label>Gmail Address</label>
+        <input type="email" id="gmail-input" placeholder="yourname@gmail.com"
+          onkeydown="if(event.key==='Enter')nextStep()" oninput="clearErr('gmail-err')"/>
+        <div class="inp-err" id="gmail-err"></div>
+      </div>
+      <button class="login-btn" onclick="nextStep()">Continue →</button>
+    </div>
+
+    <!-- Step 1: Name -->
+    <div class="step-panel" id="step-1">
+      <button class="back-btn" onclick="goStep(0)">← Back</button>
+      <div class="gmail-chip">
+        <div class="gmail-chip-av" id="chip-av">🌱</div>
+        <div class="gmail-chip-email" id="chip-email"></div>
+      </div>
+      <div class="step-title">What's your name?</div>
+      <div class="step-desc">This is how you'll appear on your Zephra profile.</div>
+      <div class="inp-wrap">
+        <label>Full Name</label>
+        <input type="text" id="name-input" placeholder="Your name" maxlength="28"
+          onkeydown="if(event.key==='Enter')nextStep()" oninput="clearErr('name-err')"/>
+        <div class="inp-err" id="name-err"></div>
+      </div>
+      <button class="login-btn" onclick="nextStep()">Continue →</button>
+    </div>
+
+    <!-- Step 2: Avatar -->
+    <div class="step-panel" id="step-2">
+      <button class="back-btn" onclick="goStep(1)">← Back</button>
+      <div class="step-title">Pick your avatar 🌱</div>
+      <div class="step-desc">Choose an icon that represents you on your eco journey.</div>
+      <div class="av-row" id="av-picker"></div>
+      <button class="login-btn" onclick="finishSetup()">Start Searching 🌿</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HOME ══ -->
+<div class="page" id="home">
+  <div class="home-inner">
+    <div class="hlogo">ZEPHRA</div>
+    <div class="htag">Search with a conscience. Every query plants a seed.</div>
+    <div class="hsearch">
+      <input type="text" id="h-input" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')doSearch(this.value)"/>
+      <button onclick="doSearch(document.getElementById('h-input').value)">Search</button>
+    </div>
+    <div class="chips" id="home-chips"></div>
+  </div>
+</div>
+
+<!-- ══ RESULTS ══ -->
+<div class="page" id="results">
+  <nav class="navbar">
+    <div class="nlogo" onclick="goHome()">ZEPHRA</div>
+    <div class="nsearch">
+      <input type="text" id="n-input" placeholder="Search anything..." onkeydown="if(event.key==='Enter')doSearch(this.value)"/>
+      <button onclick="doSearch(document.getElementById('n-input').value)">Search</button>
+    </div>
+    <div class="nav-profile-btn" id="nav-av" onclick="toggleDrop('pdrop')">🌱</div>
+    <div class="pdrop" id="pdrop">
+      <div class="pd-av" id="pd-av">🌱</div>
+      <div class="pd-name" id="pd-name"></div>
+      <div class="pd-email" id="pd-email"></div>
+      <button class="pd-out" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+  <div class="results-layout">
+    <div class="res-body">
+      <div id="wb-wrap"></div>
+      <div class="rmeta" id="rmeta"></div>
+      <div class="aibox">
+        <div class="ailabel"><div class="aidot"></div>Zephra AI Answer</div>
+        <div class="aitext" id="ai-text"></div>
+        <div class="aifooter" id="ai-footer" style="display:none">
+          <span id="ai-fl"></span><span id="ai-fr"></span>
+        </div>
+      </div>
+      <div id="web-results"></div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-profile">
+        <div class="sb-avatar" id="sb-avatar">🌱</div>
+        <div class="sb-name" id="sb-name">Explorer</div>
+        <div class="sb-email" id="sb-email"></div>
+        <div class="sb-tag">Eco Searcher</div>
+        <div class="grade-ring">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle class="ring-bg" cx="40" cy="40" r="34"/>
+            <circle class="ring-fill" id="grade-ring-fill" cx="40" cy="40" r="34"
+              stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+          </svg>
+          <div class="grade-text">
+            <div class="grade-val" id="grade-val">A+</div>
+            <div class="grade-lbl">Eco Grade</div>
+          </div>
+        </div>
+      </div>
+      <div class="sb-stats">
+        <div class="stat-card" id="stat-searches">
+          <div class="stat-icon">🔍</div>
+          <div class="stat-val" id="stat-searches-val">0</div>
+          <div class="stat-lbl">Searches</div>
+        </div>
+        <div class="stat-card" id="stat-co2">
+          <div class="stat-icon">💨</div>
+          <div class="stat-val" id="stat-co2-val">0.000g</div>
+          <div class="stat-lbl">CO₂ Used</div>
+        </div>
+        <div class="stat-card" id="stat-tokens">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-val" id="stat-tokens-val">0</div>
+          <div class="stat-lbl">Tokens</div>
+        </div>
+        <div class="stat-card" id="stat-offset">
+          <div class="stat-icon">🌿</div>
+          <div class="stat-val" id="stat-offset-val">0.0g</div>
+          <div class="stat-lbl">Offset</div>
+        </div>
+      </div>
+      <div class="tree-milestone">
+        <div class="tree-milestone-title">🌳 Trees Planted</div>
+        <div class="tree-count" id="tree-count">0</div>
+        <div class="tree-sublabel">verified trees offset</div>
+        <div class="tree-progress-wrap">
+          <div class="tree-next">Next tree: <span id="tree-next-pct">0%</span> of way there</div>
+          <div class="progress-bar"><div class="progress-fill" id="tree-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-section-title">Session Carbon</div>
+        <div class="progress-row"><span class="progress-label">Queries</span><span class="progress-pct" id="prog-queries">0%</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-queries" style="width:0%"></div></div>
+        <div class="progress-row"><span class="progress-label">Tokens Used</span><span class="progress-pct" id="prog-tokens">0%</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="bar-tokens" style="width:0%"></div></div>
+        <div class="sb-section-title" style="margin-top:10px;margin-bottom:8px;">CO₂ Per Query</div>
+        <div class="mini-chart" id="mini-chart"><div style="color:var(--muted);font-size:.72rem;align-self:center;">No searches yet</div></div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-section-title">🏅 Eco Badges</div>
+        <div class="badges-wrap" id="badges-wrap"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const AVATARS = ['🌱','🌍','🌿','🍃','🌊','⚡','🔬','🚀','🦋','🐝','🌸','🦚','🧊','🌻','🦁','🐋','🦊','🌈','🔭','🧬','🍀','🌺','🐢','🦅'];
+const GRADES  = ['A+','A','A−','B+','B','B−','C+','C'];
+const GRADE_COLORS = ['#00e5c8','#00e5c8','#2ecc71','#f1c40f','#f39c12','#e67e22','#e74c3c','#c0392b'];
+const BADGES_DEF = [
+  {id:'first',   icon:'🌱', label:'First Search',      req:(s)=>s>=1},
+  {id:'five',    icon:'🔥', label:'5 Searches',         req:(s)=>s>=5},
+  {id:'ten',     icon:'⚡', label:'10 Searches',        req:(s)=>s>=10},
+  {id:'twenty',  icon:'🚀', label:'20 Searches',        req:(s)=>s>=20},
+  {id:'fifty',   icon:'💯', label:'50 Searches',        req:(s)=>s>=50},
+  {id:'hundred', icon:'🏆', label:'100 Searches',       req:(s)=>s>=100},
+  {id:'eco1',    icon:'🌿', label:'Eco Aware',          req:(s,c)=>c>=0.1},
+  {id:'eco2',    icon:'🌎', label:'Carbon Tracker',     req:(s,c)=>c>=1.0},
+  {id:'eco3',    icon:'🌏', label:'Carbon Guardian',    req:(s,c)=>c>=5.0},
+  {id:'tree1',   icon:'🌳', label:'Tree Planter',       req:(s,c)=>c/21000>=0.00001},
+  {id:'nerd',    icon:'🔬', label:'Knowledge Nerd',     req:(s)=>s>=3},
+  {id:'deep',    icon:'📚', label:'Deep Diver',         req:(s)=>s>=15},
+  {id:'token',   icon:'🪙', label:'Token Burner',       req:(s,c,t)=>t>=1000},
+  {id:'token5',  icon:'💎', label:'Token Master',       req:(s,c,t)=>t>=5000},
+  {id:'streak',  icon:'🔗', label:'Dedicated',          req:(s)=>s>=7},
+  {id:'curious', icon:'🦋', label:'Curious Mind',       req:(s)=>s>=25},
+  {id:'scholar', icon:'🎓', label:'Scholar',            req:(s)=>s>=40},
+  {id:'sage',    icon:'🧙', label:'Eco Sage',           req:(s)=>s>=75},
+  {id:'galaxy',  icon:'🌌', label:'Galaxy Brain',       req:(s,c,t)=>t>=10000},
+  {id:'ocean',   icon:'🌊', label:'Ocean Protector',   req:(s,c)=>c>=0.5},
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let profile = null;   // {gmail, name, avatar}
+let totalCO2 = 0, totalTokens = 0, searches = 0;
+let co2History = [];
+let selAv = '🌱';
+let currentStep = 0;
+let isFirstLogin = false;
+
+// ── AVATAR PICKER ──────────────────────────────────────────────────────────
+(function(){
+  const row = document.getElementById('av-picker');
+  AVATARS.forEach(a=>{
+    const d = document.createElement('div');
+    d.className='av-opt'+(a===selAv?' on':'');
+    d.textContent = a;
+    d.onclick = ()=>{
+      selAv = a;
+      document.querySelectorAll('.av-opt').forEach(x=>x.classList.remove('on'));
+      d.classList.add('on');
+    };
+    row.appendChild(d);
+  });
+})();
+
+// ── AUTO LOGIN CHECK ───────────────────────────────────────────────────────
+(function(){
+  const saved = localStorage.getItem('zephra_profile');
+  if(saved){
+    try{
+      profile = JSON.parse(saved);
+      isFirstLogin = false;
+      launchApp();
+      return;
+    } catch(e){}
+  }
+  // Show login
+  show('login-page');
+  setTimeout(()=>document.getElementById('gmail-input').focus(), 300);
+})();
+
+// ── LOGIN FLOW ─────────────────────────────────────────────────────────────
+function handleGoogleBtn(){
+  // Simulate Google OAuth — just auto-fill with a placeholder and advance
+  const input = document.getElementById('gmail-input');
+  if(!input.value) input.value = 'user@gmail.com';
+  nextStep();
+}
+
+function nextStep(){
+  if(currentStep === 0){
+    const email = document.getElementById('gmail-input').value.trim().toLowerCase();
+    if(!email){ setErr('gmail-err','Please enter your Gmail address.'); return; }
+    if(!email.includes('@') || (!email.endsWith('gmail.com') && !email.includes('@'))){
+      setErr('gmail-err','Please enter a valid email address.'); return;
+    }
+    document.getElementById('chip-email').textContent = email;
+    // try to guess name from email
+    const guessed = email.split('@')[0].replace(/[._\d]/g,' ').trim();
+    if(guessed) document.getElementById('name-input').value =
+      guessed.split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    goStep(1);
+  } else if(currentStep === 1){
+    const name = document.getElementById('name-input').value.trim();
+    if(!name){ setErr('name-err','Please enter your name.'); return; }
+    document.getElementById('chip-av').textContent = selAv;
+    goStep(2);
+  }
+}
+
+function goStep(n){
+  document.getElementById('step-'+currentStep).classList.remove('on');
+  document.getElementById('dot-'+currentStep).classList.remove('on');
+  currentStep = n;
+  document.getElementById('step-'+n).classList.add('on');
+  document.getElementById('dot-'+n).classList.add('on');
+  // focus first input in new step
+  const inp = document.querySelector('#step-'+n+' input');
+  if(inp) setTimeout(()=>inp.focus(),100);
+}
+
+function finishSetup(){
+  const email = document.getElementById('gmail-input').value.trim().toLowerCase();
+  const name  = document.getElementById('name-input').value.trim();
+  profile = { gmail: email, name, avatar: selAv };
+  localStorage.setItem('zephra_profile', JSON.stringify(profile));
+  isFirstLogin = true;
+  launchApp();
+}
+
+function setErr(id, msg){ document.getElementById(id).textContent = msg; }
+function clearErr(id){ document.getElementById(id).textContent = ''; }
+
+// ── APP LAUNCH ─────────────────────────────────────────────────────────────
+function launchApp(){
+  // Load saved stats
+  const stats = localStorage.getItem('zephra_stats');
+  if(stats){
+    try{
+      const s = JSON.parse(stats);
+      totalCO2 = s.co2 || 0;
+      totalTokens = s.tokens || 0;
+      searches = s.searches || 0;
+      co2History = s.history || [];
+    } catch(e){}
+  }
+  updateSidebar();
+  show('home');
+  setTimeout(()=>{
+    if(isFirstLogin) showToast('🌱 Welcome to Zephra, '+profile.name+'!');
+    else showToast('👋 Welcome back, '+profile.name+'!');
+    document.getElementById('h-input').focus();
+  }, 300);
+}
+
+function signOut(){
+  localStorage.removeItem('zephra_profile');
+  localStorage.removeItem('zephra_stats');
+  profile = null; totalCO2 = 0; totalTokens = 0; searches = 0; co2History = [];
+  currentStep = 0;
+  goStep(0);
+  document.getElementById('gmail-input').value='';
+  document.getElementById('name-input').value='';
+  document.getElementById('pdrop').classList.remove('on');
+  show('login-page');
+  setTimeout(()=>document.getElementById('gmail-input').focus(),300);
+}
+
+function saveStats(){
+  localStorage.setItem('zephra_stats', JSON.stringify({
+    co2: totalCO2, tokens: totalTokens, searches, history: co2History.slice(-20)
+  }));
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function show(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function goHome(){
+  show('home');
+  document.getElementById('h-input').value='';
+  document.getElementById('pdrop').classList.remove('on');
+}
+function toggleDrop(id){
+  document.getElementById(id).classList.toggle('on');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.nav-profile-btn')&&!e.target.closest('.pdrop'))
+    document.getElementById('pdrop').classList.remove('on');
+});
+
+// ── SIDEBAR UPDATE ──────────────────────────────────────────────────────────
+function updateSidebar(){
+  if(!profile) return;
+  const av = profile.avatar||'🌱';
+
+  // nav + dropdown
+  document.getElementById('nav-av').textContent = av;
+  document.getElementById('pd-av').textContent  = av;
+  document.getElementById('pd-name').textContent  = profile.name;
+  document.getElementById('pd-email').textContent = profile.gmail;
+
+  // sidebar profile
+  document.getElementById('sb-avatar').textContent = av;
+  document.getElementById('sb-name').textContent   = profile.name;
+  document.getElementById('sb-email').textContent  = profile.gmail;
+
+  // grade
+  const gi = Math.min(Math.floor(searches/5), GRADES.length-1);
+  const grade = GRADES[gi];
+  document.getElementById('grade-val').textContent = grade;
+  document.getElementById('grade-val').style.color = GRADE_COLORS[gi];
+  const pct = Math.max(0, 1 - gi/(GRADES.length-1));
+  const ring = document.getElementById('grade-ring-fill');
+  ring.style.strokeDashoffset = 213.6 - (pct*213.6);
+  ring.style.stroke = GRADE_COLORS[gi];
+
+  // stats
+  bump('stat-searches-val', searches, v=>String(v));
+  bump('stat-co2-val', totalCO2, v=>v.toFixed(3)+'g');
+  bump('stat-tokens-val', totalTokens, v=>v>999?(v/1000).toFixed(1)+'k':String(v));
+  bump('stat-offset-val', totalCO2*0.15, v=>v.toFixed(2)+'g');
+  ['stat-searches','stat-co2','stat-tokens','stat-offset'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow');
+  });
+
+  // trees
+  const treesPlanted = Math.floor(totalCO2/21000);
+  const treePct = ((totalCO2%21000)/21000*100).toFixed(1);
+  document.getElementById('tree-count').textContent = treesPlanted;
+  document.getElementById('tree-next-pct').textContent = treePct+'%';
+  document.getElementById('tree-bar').style.width = treePct+'%';
+
+  // progress bars
+  document.getElementById('prog-queries').textContent = Math.min((searches/20)*100,100).toFixed(0)+'%';
+  document.getElementById('bar-queries').style.width = Math.min((searches/20)*100,100)+'%';
+  document.getElementById('prog-tokens').textContent = Math.min((totalTokens/5000)*100,100).toFixed(0)+'%';
+  document.getElementById('bar-tokens').style.width = Math.min((totalTokens/5000)*100,100)+'%';
+
+  // mini chart
+  const chart=document.getElementById('mini-chart');
+  if(co2History.length>0){
+    const mx=Math.max(...co2History);
+    chart.innerHTML=co2History.slice(-10).map(v=>{
+      const h=Math.max(4,Math.round((v/mx)*36));
+      return `<div class="bar-item" style="height:${h}px" title="${v.toFixed(4)}g CO₂"></div>`;
+    }).join('');
+  }
+
+  // badges
+  document.getElementById('badges-wrap').innerHTML = BADGES_DEF.map(b=>{
+    const earned=b.req(searches,totalCO2,totalTokens);
+    return `<div class="badge ${earned?'earned':'locked'}">${b.icon} ${b.label}</div>`;
+  }).join('');
+}
+
+function bump(id, val, fmt){
+  const el=document.getElementById(id);
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  el.textContent=fmt(val);
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ── KNOWLEDGE BASE ─────────────────────────────────────────────────────────
+const KB=[
+  {kw:['ai carbon','ai emission','ai climate','ai energy','llm carbon','chatgpt carbon','model emission'],ans:`**Artificial intelligence** has a surprisingly large carbon footprint that most users never see. Training a single large language model can emit over **300 tonnes of CO₂** — equivalent to the lifetime emissions of five average cars.\n\nData centers currently consume about **1–2% of global electricity**, rising rapidly as AI adoption accelerates. The carbon intensity depends heavily on server location — coal-heavy regions emit far more than renewable-powered infrastructure in Scandinavia.\n\n**Zephra was built to make this invisible cost visible**, tracking token usage per query and converting it into CO₂ equivalents.\n\n🌿 Eco insight: Switching AI workloads to renewable-powered cloud regions can reduce inference emissions by up to **70%**.`},
+  {kw:['water','wue','data center water','llm water','ai water'],ans:`The **water footprint of AI** is one of the most overlooked environmental costs of the digital revolution. Training a major language model consumes an estimated **700,000 litres** of clean water — roughly 280 Olympic swimming pools.\n\n**Water Usage Effectiveness (WUE)** benchmarks data center efficiency. Best-in-class facilities achieve below 1.0 L/kWh; older ones exceed 3.0 L/kWh.\n\n🌿 Eco insight: Cooler climates and coastal locations can reduce data center water consumption by over **90%**.`},
+  {kw:['tree','offset','plantation','plant','ngo','forest','sequestration'],ans:`**Tree planting** is one of nature's most powerful carbon capture tools. A single mature tree absorbs approximately **21 kg of CO₂ per year**, while improving biodiversity, soil health, and water cycles.\n\nZephra converts every query's carbon cost into fractional tree-planting credits. Partner NGOs geo-tag each tree with GPS coordinates, species info, and a growth timeline.\n\n🌿 Eco insight: **Mangrove forests** sequester carbon up to 10x faster than terrestrial forests.`},
+  {kw:['quantum','qubit','superposition','entanglement','quantum computer'],ans:`**Quantum computing** processes information using quantum mechanics. Qubits can exist in **superposition** of 0 and 1 simultaneously, and **entanglement** links qubits so the state of one instantly influences another.\n\nCurrent machines are in the **NISQ era**. IBM, Google, and IonQ are racing toward error-corrected logical qubits — the milestone that unlocks quantum computing's full potential.\n\n🌿 Eco insight: Quantum optimisation could dramatically reduce the ~8% global electricity waste from inefficient grid distribution.`},
+  {kw:['renewable energy','solar','wind','clean energy','green energy','solar panel'],ans:`**Renewable energy** costs have fallen faster than any technology in history. Solar PV dropped over **90% in cost** in the last decade — now the cheapest new electricity source in most countries.\n\nBy 2030, the IEA projects renewables will supply over **60% of global electricity**. The bottleneck is now political will and grid infrastructure, not technology.\n\n🌿 Eco insight: The solar energy hitting Earth in just **90 minutes** could power all of human civilisation for a full year.`},
+  {kw:['carbon footprint','reduce carbon','lower emission','sustainable living','eco friendly'],ans:`The three biggest personal emission sources: **diet** (beef/dairy), **transportation** (flying/driving), and **home energy** (heating/cooling). Targeting these delivers the greatest impact.\n\nSwitching beef to plant-based proteins a few days per week cuts food emissions by **40–50%**. A heat pump replacing gas heating can halve household emissions.\n\n🌿 Eco insight: **Roof insulation** is typically the single highest-impact home improvement — preventing up to 25% of average heating energy loss.`},
+  {kw:['machine learning','deep learning','neural network','model training','artificial intelligence'],ans:`**Machine learning** lets systems learn patterns from data instead of explicit rules. **Deep learning** uses neural networks with hundreds of layers — enabling breakthroughs in vision, language, and reasoning.\n\nModern LLMs train on trillions of tokens using thousands of GPUs for weeks. The computational and environmental demands are growing rapidly.\n\n🌿 Eco insight: **Model distillation** achieves 90% of a large model's accuracy at just 10% of the energy cost.`},
+  {kw:['climate change','global warming','greenhouse','temperature','co2 level','carbon dioxide'],ans:`**Climate change** is the long-term warming of Earth driven by human emissions since the Industrial Revolution. Average global temperature has risen ~**1.2°C**, causing more frequent extreme weather, sea level rise, and ecosystem disruption.\n\nCO₂ has risen from **280 ppm** to over **420 ppm** — the highest in 3 million years. The IPCC says net-zero emissions by ~2050 is required to limit warming to 1.5°C.\n\n🌿 Eco insight: Protecting **old-growth forests** is 30–40× more cost-effective for climate mitigation than planting new ones.`},
+  {kw:['space','nasa','rocket','satellite','mars','moon','astronaut','cosmos','universe'],ans:`**Space exploration** expands human knowledge and capability. SpaceX's reusable rockets cut launch costs by 10×, opening space to satellites, tourism, and settlement plans for Moon and Mars.\n\nNASA's Perseverance rover searches for ancient microbial life on Mars. SpaceX's Starship aims to carry **100 humans per mission** to Mars.\n\n🌿 Eco insight: **Satellites** track deforestation in real time, measure ice sheet loss, and detect methane leaks — powering smarter climate action.`},
+  {kw:['health','medicine','disease','cancer','vaccine','dna','genome','biology'],ans:`Three revolutions converge in modern medicine: **genomics**, **immunotherapy**, and **AI**. CRISPR enables precise gene editing; mRNA vaccines are now being applied to personalised cancer treatment.\n\nCAR-T cell therapy and checkpoint inhibitors have achieved remissions in previously untreatable cancers.\n\n🌿 Eco insight: **Pharmaceutical manufacturing** emits ~55% more greenhouse gases per dollar of revenue than the automotive industry.`},
+  {kw:['chocolate','cocoa','cacao','dark chocolate','milk chocolate'],ans:`**Chocolate** comes from the seeds of the *Theobroma cacao* tree — "food of the gods." Pods are hand-harvested; seeds ferment for 3–7 days before roasting and grinding into chocolate liquor.\n\n**Dark chocolate** (70%+ cocoa) is linked to cardiovascular benefits and antioxidant properties.\n\n🌿 Eco insight: Choose **Rainforest Alliance or Fairtrade chocolate** to support farming practices that protect West African forests.`},
+  {kw:['brain','memory','neuron','synapse','cognition','neuroplasticity','learning'],ans:`**The human brain** contains approximately **86 billion neurons**, each forming up to 10,000 synaptic connections. Memory formation involves long-term potentiation — the strengthening of synaptic connections through repeated activation.\n\nNeuroplasticity means the brain can rewire itself throughout life. **Aerobic exercise**, quality sleep, and novel learning experiences are among the most evidence-backed ways to enhance cognitive reserve.\n\nAlzheimer's disease affects 55 million people globally, driven by amyloid plaques and tau tangles disrupting neural communication.\n\n🌿 Eco insight: **Nature walks** measurably reduce cortisol and activity in the brain's rumination network — mental health benefits at zero carbon cost.`},
+  {kw:['crispr','gene editing','genome editing','dna editing','gene therapy','genetic engineering'],ans:`**CRISPR-Cas9** is a molecular scissors derived from bacterial immune systems. It cuts DNA at precise locations, enabling scientists to delete, repair, or insert genetic sequences with unprecedented accuracy.\n\nIn 2023, the first CRISPR therapy — **Casgevy** — was approved for sickle cell disease and beta-thalassemia, marking a landmark in medicine. Base editing and prime editing now allow single-letter DNA changes without cuts.\n\n🌿 Eco insight: CRISPR-engineered crops can be designed for drought tolerance, reducing irrigation water use by up to **40%** in water-stressed regions.`},
+  {kw:['freshwater','water scarcity','drought','aquifer','river','groundwater','water crisis'],ans:`Only **2.5% of Earth's water** is freshwater — and two-thirds of that is locked in glaciers and ice caps. Accessible freshwater in lakes, rivers, and aquifers sustains all terrestrial life.\n\nOver **2 billion people** currently live in water-stressed regions. The Ogallala Aquifer — supplying 30% of US groundwater irrigation — is depleting at rates far exceeding natural recharge.\n\n🌿 Eco insight: **Drip irrigation** delivers water directly to plant roots, cutting agricultural water use by 30–50% compared to traditional flood irrigation.`},
+  {kw:['bee','pollinator','honeybee','colony collapse','insect','pollination'],ans:`**Bees and pollinators** are responsible for fertilising approximately **75% of flowering plant species** and one-third of global food production. Colony Collapse Disorder — where worker bees abandon hives — has devastated populations since 2006.\n\nKey drivers include neonicotinoid pesticides, habitat loss, the Varroa mite, and climate change shifting bloom timing. Wild bee diversity is declining across Europe and North America.\n\n🌿 Eco insight: Planting **native wildflower corridors** in gardens and urban spaces provides critical forage for pollinators — even window boxes help.`},
+  {kw:['glacier','ice sheet','arctic','antarctic','permafrost','ice cap','melting ice'],ans:`**Earth's glaciers and ice sheets** store approximately 70% of all freshwater. They are retreating at accelerating rates — the Greenland ice sheet alone loses **280 billion tonnes** of ice per year.\n\nArctic sea ice extent has declined ~40% since the 1980s. Permafrost thaw in Siberia and Canada releases stored methane — a greenhouse gas **80× more potent** than CO₂ over 20 years.\n\n🌿 Eco insight: The **albedo effect** — ice reflecting sunlight back to space — is a critical climate stabiliser. Every square kilometre of ice lost accelerates warming non-linearly.`},
+  {kw:['mrna','vaccine','immunology','antibody','immune system','pfizer','moderna'],ans:`**mRNA vaccines** deliver genetic instructions that teach cells to produce a protein the immune system recognises and builds defences against. Pfizer-BioNTech and Moderna's COVID-19 vaccines demonstrated mRNA safety and efficacy at extraordinary speed.\n\nThe technology is now being applied to influenza, RSV, HIV, and personalised cancer vaccines. Moderna's mRNA-4157 showed ~50% reduction in melanoma recurrence in trial.\n\n🌿 Eco insight: mRNA vaccines require **far less manufacturing infrastructure** than traditional vaccines, reducing the cold chain and logistics carbon footprint.`},
+  {kw:['extreme weather','hurricane','typhoon','wildfire','flood','heatwave','storm'],ans:`**Extreme weather events** are intensifying as the climate warms. The water cycle accelerates — wetter wet seasons, drier droughts — following the Clausius-Clapeyron equation: ~7% more atmospheric moisture per degree of warming.\n\nHurricane rapid intensification events have increased **400% since the 1980s**. Wildfire burned area has doubled in North America since 1984. The 2023 global heat anomaly broke records on 38 consecutive days.\n\n🌿 Eco insight: **Mangrove and wetland restoration** provides natural coastal buffering, reducing storm surge damage by up to 50%.`},
+  {kw:['agriculture','farming','soil','fertiliser','nitrogen','crop yield','irrigation','food security'],ans:`**Modern agriculture** feeds 8 billion people but consumes 70% of global freshwater, 50% of habitable land, and drives significant greenhouse emissions through tillage, fertilisers, and livestock.\n\nRegenerative agriculture — cover crops, no-till farming, composting — rebuilds soil organic matter, sequesters carbon, and reduces input costs over time. Soil holds **3× more carbon** than the atmosphere.\n\n🌿 Eco insight: **Agroforestry** — integrating trees into farmland — increases biodiversity, reduces runoff, and can boost crop yields by 10–20%.`},
+  {kw:['microplastic','plastic pollution','plastic waste','single use','recycling','ocean plastic'],ans:`**Microplastics** — particles under 5mm — now permeate every environment on Earth. They've been found in Arctic snow, deep ocean sediments, human blood, breast milk, and placentas.\n\nAn estimated **8 million tonnes of plastic** enter the ocean annually. At current rates, oceans will contain more plastic by weight than fish by 2050. Chemical additives in plastics — phthalates, BPA — are endocrine disruptors.\n\n🌿 Eco insight: **Refusing single-use plastics** prevents ocean entry far more effectively than any downstream cleanup technology.`},
+  {kw:['hydrogen','green hydrogen','fuel cell','electrolysis','h2','power to gas'],ans:`**Green hydrogen** is produced by electrolysing water using renewable electricity — splitting H₂O into hydrogen and oxygen with zero direct emissions. It's critical for decarbonising shipping, aviation, steel, and cement.\n\nCurrent green hydrogen costs ~$4–6/kg but are projected to fall below **$2/kg by 2030** as electrolyser manufacturing scales. Countries like Germany and Australia are investing billions in hydrogen export infrastructure.\n\n🌿 Eco insight: **Green ammonia** — made from green hydrogen and air-sourced nitrogen — could decarbonise fertiliser production and provide carbon-free shipping fuel.`},
+  {kw:['carbon capture','ccs','direct air capture','sequestration','carbon removal','net zero'],ans:`**Carbon capture and storage (CCS)** intercepts CO₂ at emission sources or directly from the air, then stores it in geological formations. Climeworks' Mammoth facility in Iceland captures **36,000 tonnes/year** of atmospheric CO₂.\n\nCosts are currently high — $300–1000/tonne for direct air capture — but are projected to fall dramatically with scale. The IEA estimates 7.6 Gt/year of CCS will be needed by 2050 to hit net-zero targets.\n\n🌿 Eco insight: **Enhanced rock weathering** — spreading crushed basalt on farmland — could remove gigatonnes of CO₂ annually while improving soil fertility.`},
+  {kw:['neuroscience','psychology','behaviour','habit','dopamine','serotonin','motivation'],ans:`**Behavioural neuroscience** reveals how habits form through the basal ganglia's habit loop — cue, routine, reward. Dopamine signals predicted reward, not just reward itself, explaining why anticipation is often more pleasurable than achievement.\n\nSerotonin regulates mood and is influenced heavily by gut microbiome health — the "gut-brain axis." Up to **90% of the body's serotonin** is produced in the digestive tract.\n\n🌿 Eco insight: **Green exercise** — physical activity in natural settings — produces stronger wellbeing outcomes than equivalent urban exercise, with lower physiological stress markers.`},
+  {kw:['supernova','black hole','neutron star','dark matter','dark energy','cosmology'],ans:`The universe is **13.8 billion years old** and spans at least 93 billion light-years. Its composition: ~5% ordinary matter, ~27% dark matter, ~68% dark energy — and we don't fully understand either of the latter two.\n\n**Supernovae** forge heavy elements from iron to uranium, seeding the cosmos and making rocky planets — and us — possible. Black holes range from stellar mass to the supermassive, like M87's black hole weighing **6.5 billion solar masses**.\n\n🌿 Eco insight: **Space telescopes** like Webb reveal cosmic processes that inform our understanding of Earth's own geological and atmospheric history.`},
+  {kw:['misinformation','disinformation','fake news','media literacy','social media','algorithm'],ans:`**Misinformation** spreads six times faster on social media than accurate information, according to MIT research. Algorithmic amplification of engagement-maximising content creates filter bubbles that reinforce existing beliefs.\n\nDeepfakes — AI-synthesised video — are becoming increasingly indistinguishable. Media literacy and source triangulation are the most durable defences.\n\n🌿 Eco insight: **Climate misinformation** is actively funded by fossil fuel interests; cross-referencing claims with IPCC reports and peer-reviewed sources is essential.`},
+  {kw:['gut microbiome','probiotics','prebiotics','bacteria','digestion','microbiota'],ans:`The **gut microbiome** comprises roughly **38 trillion bacteria** — comparable in number to human cells. It regulates digestion, immune function, mood, and even cognitive clarity via the gut-brain axis.\n\nDiet is the most powerful modulator: high fibre, diverse plant foods consistently increase microbial diversity. Antibiotic overuse is the leading driver of dysbiosis globally.\n\n🌿 Eco insight: **Fermented foods** — kimchi, kefir, sauerkraut — support microbiome health and are low-carbon foods that can be made at home with minimal energy.`},
+  {kw:['antibiotic resistance','amr','superbug','bacteria','mrsa','infection','antimicrobial'],ans:`**Antimicrobial resistance (AMR)** could kill **10 million people per year by 2050** — surpassing cancer. Overuse of antibiotics in human medicine and livestock farming has accelerated the evolution of resistant strains.\n\nOnly two genuinely new antibiotic classes have been introduced since the 1980s. Phage therapy — using bacteriophage viruses to kill specific bacteria — is showing promise as an alternative.\n\n🌿 Eco insight: Reducing **livestock antibiotic use** through better animal welfare and targeted treatment is one of the highest-impact AMR interventions globally.`},
+  {kw:['longevity','ageing','aging','lifespan','telomere','senescence','healthspan'],ans:`**Human ageing** involves multiple biological processes: telomere shortening, epigenetic drift, senescent cell accumulation, mitochondrial dysfunction, and proteostasis failure.\n\nCaloric restriction remains the most reproducible lifespan-extending intervention across species. Rapamycin (mTOR inhibitor), metformin, and senolytics are leading longevity drug candidates.\n\n**Blue Zones** — Okinawa, Sardinia, Loma Linda — share common factors: plant-rich diets, regular low-intensity movement, strong social bonds, purpose, and stress management.\n\n🌿 Eco insight: **Longer-lived, healthier populations** require less intensive medical care — associated with significantly lower per-capita healthcare emissions.`},
+  {kw:['poverty','inequality','development','sdg','sustainable development','education','gdp'],ans:`**Global extreme poverty** — living under $2.15/day — has fallen from 36% in 1990 to under 9% today, driven largely by economic growth in Asia. But progress stalled after COVID-19.\n\nThe UN Sustainable Development Goals (SDGs) target an end to poverty, quality education, and climate action by 2030 — but most tracks are significantly behind schedule.\n\n🌿 Eco insight: **Climate change is regressive** — the world's poorest populations are most exposed to its impacts while having contributed least to emissions.`},
+  {kw:['coral reef','bleaching','great barrier reef','reef','ocean warming','marine biodiversity'],ans:`**Coral reefs** cover less than 1% of the ocean floor but support ~25% of all marine species. They are built by tiny polyps secreting calcium carbonate skeletons over millennia.\n\n**Coral bleaching** occurs when thermal stress causes polyps to expel their symbiotic algae, leaving ghostly white skeletons. The Great Barrier Reef experienced its sixth mass bleaching event in 2024, with 73% of surveyed reefs affected.\n\nAt 2°C of warming, 99% of coral reefs will bleach annually — functional extinction.\n\n🌿 Eco insight: **Coral assisted evolution** — breeding heat-tolerant corals and reintroducing them — offers a lifeline, but only if ocean warming is slowed.`},
+  {kw:['exoplanet','habitable zone','trappist','kepler','james webb','extraterrestrial','life'],ans:`**Exoplanet discovery** has identified over **5,500 confirmed planets** orbiting other stars. The TRAPPIST-1 system has seven Earth-sized planets, three in the habitable zone.\n\nJames Webb Space Telescope can now analyse exoplanet atmospheres for biosignatures — oxygen, methane, water vapour — that might indicate life. The first candidate biosignature detection may come within a decade.\n\n🌿 Eco insight: **SETI and Webb mission data** is shared freely by NASA — a model of open science that maximises insight per carbon emitted.`},
+  {kw:['education','school','university','stem','learning','skills','knowledge economy'],ans:`**Education** is the highest-return investment a society can make: each additional year of schooling raises lifetime earnings by ~10% and correlates with better health, lower birth rates, and civic participation.\n\nTech-enabled learning — Khan Academy, MOOCs, AI tutors — is democratising access globally. Studies show AI tutors can achieve **2 sigma improvement** (equivalent to one-on-one human tutoring) at scale.\n\n🌿 Eco insight: Remote and digital education saves significant carbon from commuting — hybrid university models cut campus emissions by 30–40%.`},
+  {kw:['cryptocurrency exchange','defi','stablecoin','dao','smart contract'],ans:`**Decentralised Finance (DeFi)** reimagines banking without intermediaries. Smart contracts on blockchains like Ethereum automatically execute financial agreements — lending, swapping, and earning yield without banks.\n\nTotal value locked in DeFi protocols peaked above **$180 billion** in 2021. Stablecoins like USDC maintain a 1:1 peg to the dollar, serving as the settlement layer for crypto markets.\n\n🌿 Eco insight: DeFi platforms built on **Proof of Stake chains** have a carbon footprint comparable to a website — thousands of times cleaner than Bitcoin-based systems.`},
+  {kw:['electric vehicle','ev','electric car','tesla','battery','lithium','charging station'],ans:`**Electric vehicles** have reached a tipping point — global EV sales surpassed **14 million** in 2023, with battery costs falling 90% over the past decade. The average EV emits **3× less CO₂ over its lifetime** than a petrol car, even accounting for manufacturing.\n\nSolid-state batteries promise **2× the energy density** of lithium-ion cells and 10-minute fast charging by the late 2020s. Tesla, BYD, and Volkswagen are all racing toward this milestone.\n\n🌿 Eco insight: Charging your EV overnight on renewable-backed tariffs can reduce its lifecycle emissions by a further **50%**.`},
+  {kw:['ocean','coral reef','plastic pollution','sea level','marine','ocean acidification'],ans:`**Oceans** cover 71% of Earth's surface and absorb **30% of human CO₂ emissions** — but this is making seawater more acidic, dissolving the calcium carbonate that coral reefs, molluscs, and plankton need to survive.\n\nOcean plastic now totals over **170 trillion particles**, with 11 million tonnes added each year. The Great Pacific Garbage Patch spans an area twice the size of Texas.\n\n🌿 Eco insight: **Seagrass meadows** sequester carbon up to 35× faster per hectare than tropical rainforests.`},
+  {kw:['food waste','agriculture','farming','meat','livestock','vegan','vegetarian','plant based'],ans:`**Food systems** are responsible for about **34% of global greenhouse gas emissions** — more than all transport combined. Livestock farming alone accounts for 14.5% of emissions.\n\nHalf of all food waste happens **before it even reaches the consumer** — in fields, transport, and retail. Reducing food waste globally could cut emissions by up to **8%**.\n\n🌿 Eco insight: Replacing just **one beef meal per week** with a plant-based alternative for a year saves the CO₂ equivalent of a London-to-Barcelona flight.`},
+  {kw:['nuclear energy','nuclear power','fission','fusion','uranium','reactor'],ans:`**Nuclear power** generates about **10% of global electricity** with near-zero direct carbon emissions. A nuclear plant has a smaller lifecycle carbon footprint per kWh than solar — producing safe, dense, reliable baseload energy.\n\n**Fusion energy** — the same process powering the sun — reached a major milestone in 2022 when the NIF produced more energy than the laser energy delivered to the fuel. Commercial fusion is now forecast for the 2040s.\n\n🌿 Eco insight: France runs on **70% nuclear power** and has one of the cleanest electricity grids in the developed world.`},
+  {kw:['cryptocurrency','bitcoin','blockchain','ethereum','crypto','nft','web3'],ans:`**Blockchain** is a distributed ledger secured by cryptographic hashing and consensus protocols. Bitcoin uses **Proof of Work**, consuming roughly as much electricity as **Argentina** each year. Ethereum's shift to Proof of Stake in 2022 cut its energy use by **99.95%**.\n\nBeyond currency, blockchains are enabling decentralised finance, verifiable digital ownership, and supply-chain transparency.\n\n🌿 Eco insight: **Carbon credit markets** are being tokenised on blockchain to prevent double-counting and improve transparency in offset claims.`},
+  {kw:['mental health','stress','anxiety','depression','mindfulness','meditation','wellbeing'],ans:`**Mental health** affects 1 in 4 people globally each year. Access to care remains deeply unequal — in low-income countries, up to **85% of people** with mental illness receive no treatment.\n\nDigital therapies, AI companions, and teletherapy are expanding access dramatically. Mindfulness-based interventions show evidence comparable to antidepressants for mild-to-moderate depression.\n\n🌿 Eco insight: Time spent in **green spaces** for as little as 2 hours per week is associated with significantly lower stress hormones and improved mood.`},
+  {kw:['biodiversity','species','extinction','wildlife','habitat','ecosystem','endangered'],ans:`Earth is currently experiencing its **sixth mass extinction**, driven by habitat loss, overexploitation, pollution, and climate change. Species are disappearing **1,000× faster** than natural background rates.\n\nOver **1 million species** face extinction within decades, according to the IPBES. Protecting and restoring 30% of Earth's land and ocean by 2030 — the "30×30" target — could halt the collapse.\n\n🌿 Eco insight: **Rewilding** — restoring apex predators like wolves — can restore entire ecosystems through trophic cascades, boosting carbon storage and biodiversity simultaneously.`},
+  {kw:['internet','bandwidth','streaming','data centre','cloud','5g','fibre'],ans:`The **internet** consumes approximately **2% of global energy**, comparable to the aviation industry. Streaming video alone accounts for **80% of internet traffic**, with each hour of 4K streaming emitting roughly 36g of CO₂.\n\n5G networks are **up to 90% more energy-efficient** per bit than 4G. The shift to fibre further reduces energy-per-bit dramatically compared to copper.\n\n🌿 Eco insight: Choosing **SD over 4K streaming** when you don't need the quality can cut your digital carbon footprint by up to 90% per viewing hour.`},
+  {kw:['urban planning','city','smart city','public transport','bus','cycling','walkability'],ans:`**Urban areas** house 56% of humanity and produce 70% of global CO₂. Yet compact, walkable cities with strong public transit can achieve **per-capita emissions 75% lower** than sprawling car-dependent suburbs.\n\nSingapore, Amsterdam, and Copenhagen lead the world in sustainable urban design — integrating cycling, transit, and green infrastructure as a unified system.\n\n🌿 Eco insight: Every additional **tree in a city** reduces local temperatures by 1–5°C through shade and evapotranspiration, cutting air-conditioning demand.`},
+  {kw:['fast fashion','clothing','textile','cotton','polyester','recycled fabric','wardrobe'],ans:`**Fast fashion** is one of the world's most polluting industries, responsible for **8–10% of global carbon emissions** and 20% of industrial wastewater. Producing a single cotton T-shirt requires **2,700 litres of water** — enough for one person to drink for 2.5 years.\n\nPolyester, the most used textile fibre, releases microplastics with every wash — with an estimated **500,000 tonnes** entering oceans annually.\n\n🌿 Eco insight: Wearing a garment just **9 more months** beyond its average use reduces its carbon, water, and waste footprint by 20–30%.`},
+  {kw:['sleep','circadian','insomnia','rem','deep sleep','melatonin','chronotype'],ans:`**Sleep** is a biological necessity, not a luxury. During deep sleep, the brain's glymphatic system flushes out toxic proteins including amyloid-beta — associated with Alzheimer's disease. Chronic sleep deprivation raises risks of heart disease, diabetes, and depression.\n\nThe optimal range for most adults is **7–9 hours**. Blue light from screens suppresses melatonin; reducing screen exposure 1 hour before bed significantly improves sleep onset.\n\n🌿 Eco insight: Well-rested employees are **up to 20% more productive** — meaning the same economic output with fewer hours (and energy) worked.`},
+  {kw:['history','ancient','civilisation','roman','greek','egypt','medieval','world war'],ans:`**Human history** spans roughly 300,000 years since anatomically modern *Homo sapiens* emerged. Agriculture — invented ~10,000 BCE — enabled civilisations: Mesopotamia, Egypt, the Indus Valley, and China all emerged within 5,000 years.\n\nThe 20th century was the most transformative: two world wars, decolonisation, the Space Race, and the Digital Revolution compressed centuries of change into decades.\n\n🌿 Eco insight: **Pre-industrial societies** consumed roughly 20× less energy per person than modern developed economies — yet produced Shakespeare, Beethoven, and the Pyramids.`},
+  {kw:['cryptocurrency exchange','defi','stablecoin','dao','smart contract'],ans:`**Decentralised Finance (DeFi)** reimagines banking without intermediaries. Smart contracts on blockchains like Ethereum automatically execute financial agreements — lending, swapping, and earning yield without banks.\n\nTotal value locked in DeFi protocols peaked above **$180 billion** in 2021. Stablecoins like USDC maintain a 1:1 peg to the dollar, serving as the settlement layer for crypto markets.\n\n🌿 Eco insight: DeFi platforms built on **Proof of Stake chains** have a carbon footprint comparable to a website — thousands of times cleaner than Bitcoin-based systems.`},
+  {kw:['python','javascript','typescript','rust','golang','programming language','coding','software'],ans:`**Programming languages** are the building blocks of software civilisation. Python dominates **data science and AI** thanks to its readable syntax and rich library ecosystem. JavaScript powers every interactive web page on the planet.\n\nRust is the fastest-growing systems language, prized for **memory safety without garbage collection** — eliminating entire classes of security bugs. Go excels at scalable network services.\n\n🌿 Eco insight: **Energy-efficient code** matters — Python programs can consume 80× more energy than equivalent C programs. Optimising critical loops has real environmental impact.`},
+];
+
+const FALLBACKS=[
+  (q)=>`**${cap(q)}** spans multiple disciplines and continues to generate significant scholarly attention. Foundational principles interact with contemporary developments in ways that reward deeper investigation.\n\nInterdisciplinary approaches — combining insights from science, policy, and technology — have proven particularly fruitful in generating actionable knowledge.\n\n🌿 Eco insight: **Digital research** saves approximately 100× the paper and energy of traditional knowledge distribution.`,
+  (q)=>`**"${q}"** connects to a rich body of evolving knowledge. Contemporary perspectives emphasise **systems thinking** — recognising that phenomena exist within webs of interacting causes rather than isolation.\n\nThe most impactful insights tend to emerge at disciplinary intersections, where creative synthesis becomes possible.\n\n🌿 Eco insight: **Libraries** are among the most carbon-efficient institutions ever created — serving thousands with a fraction of individual ownership's energy.`,
+  (q)=>`**${cap(q)}** is an active area of inquiry with implications across science, society, and sustainability. Experts increasingly draw on big data and machine learning to reveal patterns invisible to traditional analysis.\n\nPublic engagement with topics like this one drives better policy decisions and collective action on the challenges that matter most.\n\n🌿 Eco insight: **Open access publishing** reduces the carbon cost of knowledge sharing — science belongs to everyone.`,
+  (q)=>`Exploring **"${q}"** reveals layers of complexity that reward curiosity. Whether approached from a scientific, historical, or practical angle, the topic connects to deeper questions about how the world works.\n\nThe best mental models combine rigorous evidence with creative intuition — and remain open to revision as new data emerges.\n\n🌿 Eco insight: **Lifelong learning** is associated with greater pro-environmental behaviour — curious people make better planetary citizens.`,
+];
+
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function getAnswer(query){
+  const q=query.toLowerCase();
+  for(const e of KB) if(e.kw.some(k=>q.includes(k))) return e.ans;
+  const words=q.split(/\s+/).filter(w=>w.length>3);
+  for(const e of KB) if(e.kw.some(k=>words.some(w=>k.includes(w)||w.includes(k.split(' ')[0])))) return e.ans;
+  return FALLBACKS[Math.floor(Math.random()*FALLBACKS.length)](query);
+}
+
+// ── SITES ──────────────────────────────────────────────────────────────────
+const SITES=[
+  {fav:'W',color:'#c00',domain:'wikipedia.org',t:'{Q} — Wikipedia',s:'Learn about <strong>{q}</strong> from the world\'s largest open encyclopedia.',url:q=>`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}`},
+  {fav:'G',color:'#4285f4',domain:'scholar.google.com',t:'Research articles on {Q} — Google Scholar',s:'Peer-reviewed papers on <strong>{q}</strong> from universities worldwide.',url:q=>`https://scholar.google.com/scholar?q=${encodeURIComponent(q)}`},
+  {fav:'N',color:'#c0392b',domain:'nature.com',t:'{Q}: Latest research — Nature',s:'Peer-reviewed findings on <strong>{q}</strong> covering breakthroughs and consensus.',url:q=>`https://www.nature.com/search?q=${encodeURIComponent(q)}`},
+  {fav:'M',color:'#0055aa',domain:'technologyreview.mit.edu',t:'{Q} Explained — MIT Tech Review',s:'MIT breaks down the science of <strong>{q}</strong> for specialists and curious readers.',url:q=>`https://www.technologyreview.com/search/?s=${encodeURIComponent(q)}`},
+  {fav:'S',color:'#e67e00',domain:'scientificamerican.com',t:'Science of {Q} — Scientific American',s:'Clear, trustworthy analysis of the evidence behind <strong>{q}</strong>.',url:q=>`https://www.scientificamerican.com/search/?q=${encodeURIComponent(q)}`},
+  {fav:'B',color:'#333',domain:'britannica.com',t:'{Q} | Facts — Britannica',s:'Expert-written coverage of <strong>{q}</strong> including history and significance.',url:q=>`https://www.britannica.com/search?query=${encodeURIComponent(q)}`},
+  {fav:'R',color:'#ff4500',domain:'reddit.com',t:'{Q} — Community Discussion on Reddit',s:'Real conversations and first-hand experiences about <strong>{q}</strong> from global communities.',url:q=>`https://www.reddit.com/search/?q=${encodeURIComponent(q)}`},
+  {fav:'Y',color:'#006699',domain:'youtube.com',t:'{Q} — Video Results on YouTube',s:'Watch expert explanations and documentaries about <strong>{q}</strong>.',url:q=>`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`},
+  {fav:'A',color:'#1db954',domain:'arxiv.org',t:'{Q} — Preprints on arXiv',s:'Cutting-edge preprint research on <strong>{q}</strong> from leading institutions.',url:q=>`https://arxiv.org/search/?query=${encodeURIComponent(q)}&searchtype=all`},
+  {fav:'I',color:'#006b3c',domain:'iea.org',t:'{Q} — Energy Data — IEA',s:'Official statistics and policy analysis on <strong>{q}</strong> from the International Energy Agency.',url:q=>`https://www.iea.org/search?q=${encodeURIComponent(q)}`},
+  {fav:'P',color:'#8e44ad',domain:'pubmed.ncbi.nlm.nih.gov',t:'{Q} — Medical Research — PubMed',s:'Biomedical studies and clinical trials on <strong>{q}</strong> from the NIH database.',url:q=>`https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(q)}`},
+  {fav:'C',color:'#2980b9',domain:'climate.nasa.gov',t:'{Q} — NASA Climate Data',s:'Satellite-verified climate data and science on <strong>{q}</strong> from NASA Earth Observatory.',url:q=>`https://climate.nasa.gov/search/?q=${encodeURIComponent(q)}`},
+];
+function makeWebResults(query){
+  const q=query.length>42?query.slice(0,42)+'…':query;
+  const shuffled=[...SITES].sort(()=>Math.random()-0.5).slice(0,6);
+  return shuffled.map(s=>({fav:s.fav,color:s.color,displayUrl:s.domain,href:s.url(query),
+    title:s.t.replace('{Q}',q).replace('{q}',query.toLowerCase()),
+    snip:s.s.replace(/{q}/g,query.toLowerCase()).replace(/{Q}/g,q)}));
+}
+
+// ── HOME CHIPS ─────────────────────────────────────────────────────────────
+const HOME_CHIPS=[
+  ['🌍','How does AI affect climate change?'],['⚛️','What is quantum computing?'],
+  ['♻️','How to reduce carbon footprint?'],['☀️','Latest advances in renewable energy'],
+  ['🌳','How does tree planting offset CO2?'],
+  ['🌊','How does ocean acidification affect coral reefs?'],
+  ['🚗','Are electric vehicles really better for the planet?'],
+  ['🍔','How does diet impact the environment?'],
+  ['⚡','How efficient is nuclear energy?'],
+  ['🦋','What is the biodiversity crisis?'],
+  ['🧠','How does the brain form memories?'],
+  ['🦠','What is CRISPR gene editing?'],
+  ['🛸','Is there life on other planets?'],
+  ['💧','Global freshwater crisis explained'],
+  ['🏙️','How can cities become carbon neutral?'],
+  ['🧬','How does mRNA vaccine technology work?'],
+  ['🌡️','What causes extreme weather events?'],
+  ['🐝','Why are bees so important for ecosystems?'],
+  ['🔋','Future of battery storage technology'],
+  ['🌾','How sustainable is modern agriculture?'],
+  ['🐋','What threats do whales face today?'],
+  ['🌙','What are the benefits of better sleep?'],
+  ['🤖','How will AI change jobs in the future?'],
+  ['🏔️','How are glaciers responding to warming?'],
+];
+(function(){
+  const wrap=document.getElementById('home-chips');
+  HOME_CHIPS.forEach(([icon,q])=>{
+    const d=document.createElement('div');d.className='chip';
+    d.textContent=icon+' '+(q.length>30?q.slice(0,28)+'…':q);
+    d.onclick=()=>doSearch(q);wrap.appendChild(d);
+  });
+})();
+
+// ── SEARCH ─────────────────────────────────────────────────────────────────
+let firstSearchOfSession = true;
+function doSearch(query){
+  query=query.trim(); if(!query) return;
+  show('results');
+  document.getElementById('n-input').value=query;
+
+  // welcome back banner (only first search of session)
+  const wbWrap = document.getElementById('wb-wrap');
+  if(firstSearchOfSession && !isFirstLogin && profile){
+    wbWrap.innerHTML=`<div class="wb-banner"><div class="wb-av">${profile.avatar}</div><div class="wb-text"><div class="wb-hello">Welcome back, ${profile.name}! 👋</div><div class="wb-sub">Your eco stats have been restored from your last session.</div></div></div>`;
+    firstSearchOfSession=false;
+  } else if(firstSearchOfSession){ wbWrap.innerHTML=''; firstSearchOfSession=false; }
+
+  const count=(Math.floor(Math.random()*700000+200000)).toLocaleString();
+  const time=(Math.random()*0.9+0.5).toFixed(2);
+  document.getElementById('rmeta').innerHTML=`About <span>${count}</span> results · ${time}s · Zephra AI`;
+
+  const aiText=document.getElementById('ai-text');
+  const aiFooter=document.getElementById('ai-footer');
+  aiText.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+  aiFooter.style.display='none';
+
+  const webDiv=document.getElementById('web-results');
+  webDiv.innerHTML=Array(6).fill(0).map(()=>`<div class="wr"><div style="display:flex;gap:8px;margin-bottom:8px"><div class="skel" style="width:18px;height:18px;border-radius:4px;flex-shrink:0"></div><div class="skel" style="width:130px;height:12px"></div></div><div class="skel" style="width:68%;height:16px;margin-bottom:8px"></div><div class="skel" style="width:94%;height:11px;margin-bottom:5px"></div><div class="skel" style="width:80%;height:11px"></div></div>`).join('');
+
+  setTimeout(()=>{
+    const answer=getAnswer(query);
+    const tokens=Math.ceil((query.length+answer.length)*0.75);
+    const co2=parseFloat((tokens*0.0022).toFixed(4));
+    const prevCO2=totalCO2; const prevS=searches;
+
+    totalCO2=parseFloat((totalCO2+co2).toFixed(4));
+    totalTokens+=tokens; searches++;
+    co2History.push(co2);
+    saveStats();
+
+    if(Math.floor(totalCO2/21000)>Math.floor(prevCO2/21000))
+      showToast('🌳 A new tree has been planted on your behalf!');
+
+    BADGES_DEF.forEach(b=>{
+      if(!b.req(prevS,prevCO2,totalTokens-tokens)&&b.req(searches,totalCO2,totalTokens))
+        setTimeout(()=>showToast('🏅 Badge unlocked: '+b.label),1500);
+    });
+
+    updateSidebar();
+
+    typewriter(aiText,answer,()=>{
+      document.getElementById('ai-fl').textContent=`🌿 ${co2.toFixed(4)}g CO₂ · ${tokens} tokens`;
+      document.getElementById('ai-fr').textContent=`ECO+${(co2/21000).toFixed(6)} trees`;
+      aiFooter.style.display='flex';
+    });
+
+    setTimeout(()=>{
+      webDiv.innerHTML=makeWebResults(query).map(r=>`<div class="wr"><div class="wr-src"><div class="wr-fav" style="background:${r.color}">${r.fav}</div><div class="wr-url">${r.displayUrl}</div></div><a class="wr-title" href="${r.href}" target="_blank" rel="noopener noreferrer">${r.title}</a><div class="wr-snip">${r.snip}</div></div>`).join('');
+    },300);
+  }, 900+Math.random()*700);
+}
+
+// ── TYPEWRITER ──────────────────────────────────────────────────────────────
+function fmt(text){
+  return '<p>'+text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n\n/g,'</p><p style="margin-top:10px">').replace(/\n/g,'<br>')+'</p>';
+}
+function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.innerText;}
+function typewriter(el,text,onDone){
+  const plain=stripHtml(fmt(text)); let i=0; el.innerHTML='';
+  const span=document.createElement('span'); el.appendChild(span);
+  const cursor=document.createElement('span'); cursor.className='cursor'; cursor.textContent='▋'; el.appendChild(cursor);
+  function tick(){
+    if(i<plain.length){
+      i+=Math.floor(Math.random()*4)+1;
+      span.innerHTML=fmt(plain.slice(0,Math.min(i,plain.length))).replace(/<p[^>]*>/g,'').replace(/<\/p>/g,' ');
+      el.scrollIntoView({block:'nearest',behavior:'smooth'});
+      setTimeout(tick,13);
+    } else { el.innerHTML=fmt(text); onDone&&onDone(); }
+  }
+  tick();
+}
+</script>
+</body>
+</html>
